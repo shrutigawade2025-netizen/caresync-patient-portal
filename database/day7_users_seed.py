@@ -107,6 +107,3 @@ print("Doctor login:  doctor1@caresync.local  /  Doctor@1234")
 print("Doctor login:  doctor2@caresync.local  /  Doctor@1234")
 print("Patient login: patient1@caresync.local /  Patient@1234")
 print("Patient login: patient2@caresync.local /  Patient@1234")
-
-
-

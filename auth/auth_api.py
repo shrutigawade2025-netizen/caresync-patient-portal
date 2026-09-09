@@ -52,7 +52,7 @@ def get_db():
         host="localhost",
         port=3306,
         user="root",
-        password="",
+        password="PRO64",
         database="caresync"
     )
     # dictionary=True means rows come back as {column: value} instead of tuples
