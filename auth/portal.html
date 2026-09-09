@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareSync Patient Portal</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Calibri, Arial, sans-serif; background: #F4F6F9; color: #1A1A1A; }
+
+
+    /* Login */
+    .login-wrapper { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card { background: #fff; border: 1px solid #D5D8DC; border-radius: 8px; padding: 40px 48px; width: 380px; }
+    .login-title { font-size: 22px; font-weight: bold; color: #2C3E50; margin-bottom: 6px; }
+    .login-sub { font-size: 13px; color: #5D6D7E; margin-bottom: 28px; }
+    .field-label { font-size: 13px; font-weight: bold; color: #2C3E50; margin-bottom: 4px; }
+    .field-input { width: 100%; padding: 10px 12px; border: 1px solid #D5D8DC; border-radius: 4px; font-size: 14px; margin-bottom: 18px; outline: none; }
+    .field-input:focus { border-color: #2C3E50; }
+    .btn-login { width: 100%; padding: 11px; background: #2C3E50; color: #fff; border: none; border-radius: 4px; font-size: 15px; cursor: pointer; margin-top: 4px; }
+    .btn-login:hover { background: #1A252F; }
+    .error-msg { color: #922B21; font-size: 13px; margin-top: 12px; }
+
+
+    /* Dashboard shell */
+    .topbar { background: #2C3E50; color: #fff; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 18px; font-weight: bold; }
+    .topbar-user { font-size: 13px; color: #AEB6BF; }
+    .btn-logout { background: transparent; border: 1px solid #AEB6BF; color: #AEB6BF; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .btn-logout:hover { border-color: #fff; color: #fff; }
+    .dash-body { padding: 32px; max-width: 1100px; margin: 0 auto; }
+    .section-title { font-size: 17px; font-weight: bold; color: #2C3E50; margin-bottom: 16px; border-bottom: 2px solid #D5D8DC; padding-bottom: 6px; }
+
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; margin-bottom: 36px; font-size: 14px; }
+    .data-table th { background: #2C3E50; color: #fff; text-align: left; padding: 10px 12px; }
+    .data-table td { padding: 9px 12px; border-bottom: 1px solid #EAECEE; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:nth-child(even) td { background: #F8F9FA; }
+
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold; }
+    .badge-completed     { background: #D5F5E3; color: #1E8449; }
+    .badge-scheduled     { background: #D6EAF8; color: #1A5276; }
+    .badge-cancelled     { background: #FADBD8; color: #922B21; }
+    .badge-paid          { background: #D5F5E3; color: #1E8449; }
+    .badge-partially     { background: #FEF9E7; color: #9A7D0A; }
+    .badge-pending       { background: #FEF9E7; color: #9A7D0A; }
+    .badge-rejected      { background: #FADBD8; color: #922B21; }
+
+
+    .empty-msg { color: #5D6D7E; font-size: 14px; margin: 12px 0 36px 0; }
+    .loading-msg { color: #2C3E50; font-size: 14px; margin: 12px 0 36px 0; }
+  </style>
+</head>
+<body>
+
+
+<div id="app">
+
+
+  <!-- LOGIN SCREEN -->
+  <div v-if="screen === 'login'" class="login-wrapper">
+    <div class="login-card">
+      <div class="login-title">CareSync</div>
+      <div class="login-sub">Patient Portal &mdash; Hospital Management System</div>
+
+
+      <div class="field-label">Email Address</div>
+      <input class="field-input" type="email" v-model="loginEmail" placeholder="your@email.com" />
+
+
+      <div class="field-label">Password</div>
+      <input class="field-input" type="password" v-model="loginPassword" @keyup.enter="doLogin" placeholder="Enter password" />
+
+
+      <button class="btn-login" @click="doLogin" :disabled="loading">
+        {{ loading ? 'Logging in...' : 'Log In' }}
+      </button>
+
+
+      <div v-if="loginError" class="error-msg">{{ loginError }}</div>
+    </div>
+  </div>
+
+
+  <!-- DOCTOR DASHBOARD -->
+  <div v-if="screen === 'doctor'">
+    <div class="topbar">
+      <div class="topbar-title">CareSync &mdash; Doctor Portal</div>
+      <div>
+        <span class="topbar-user">{{ userEmail }}&nbsp;&nbsp;</span>
+        <button class="btn-logout" @click="doLogout">Log Out</button>
+      </div>
+    </div>
+    <div class="dash-body">
+      <div class="section-title">My Appointments</div>
+
+
+      <div v-if="dashLoading" class="loading-msg">Loading appointments...</div>
+      <div v-else-if="!doctorAppointments || doctorAppointments.length === 0" class="empty-msg">
+        No appointments found.
+      </div>
+      <table v-else class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Patient Name</th>
+            <th>Blood Group</th>
+            <th>Phone</th>
+            <th>Reason</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="appt in doctorAppointments" :key="appt.appointment_id">
+            <td>{{ appt.appointment_date }}</td>
+            <td>{{ appt.appointment_time }}</td>
+            <td>{{ appt.patient_name }}</td>
+            <td>{{ appt.blood_group }}</td>
+            <td>{{ appt.phone_number }}</td>
+            <td>{{ appt.reason }}</td>
+            <td>
+              <span :class="statusBadge(appt.status)" class="badge">{{ appt.status }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- PATIENT DASHBOARD -->
+  <div v-if="screen === 'patient'">
+    <div class="topbar">
+      <div class="topbar-title">CareSync &mdash; Patient Portal</div>
+      <div>
+        <span class="topbar-user">{{ userEmail }}&nbsp;&nbsp;</span>
+        <button class="btn-logout" @click="doLogout">Log Out</button>
+      </div>
+    </div>
+    <div class="dash-body">
+
+
+      <!-- Appointments -->
+      <div class="section-title">My Appointments</div>
+      <div v-if="dashLoading" class="loading-msg">Loading appointments...</div>
+      <div v-else-if="!patientAppointments || patientAppointments.length === 0" class="empty-msg">
+        No appointments found.
+      </div>
+      <table v-else class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Doctor</th>
+            <th>Specialisation</th>
+            <th>Reason</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="appt in patientAppointments" :key="appt.appointment_id">
+            <td>{{ appt.appointment_date }}</td>
+            <td>{{ appt.appointment_time }}</td>
+            <td>{{ appt.doctor_name }}</td>
+            <td>{{ appt.specialisation }}</td>
+            <td>{{ appt.reason }}</td>
+            <td>
+              <span :class="statusBadge(appt.status)" class="badge">{{ appt.status }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+
+      <!-- Bills -->
+      <div class="section-title">My Bills</div>
+      <div v-if="dashLoading" class="loading-msg">Loading bills...</div>
+      <div v-else-if="!patientBills || patientBills.length === 0" class="empty-msg">
+        No billing records found.
+      </div>
+      <table v-else class="data-table">
+        <thead>
+          <tr>
+            <th>Bill Date</th>
+            <th>Total Amount</th>
+            <th>Amount Paid</th>
+            <th>Discount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="bill in patientBills" :key="bill.bill_id">
+            <td>{{ bill.bill_date }}</td>
+            <td>&#8377; {{ Number(bill.total_amount).toLocaleString('en-IN') }}</td>
+            <td>&#8377; {{ Number(bill.amount_paid).toLocaleString('en-IN') }}</td>
+            <td>&#8377; {{ Number(bill.discount).toLocaleString('en-IN') }}</td>
+            <td>
+              <span :class="billBadge(bill.status)" class="badge">{{ bill.status }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+
+    </div>
+  </div>
+
+
+</div><!-- #app -->
+
+
+<script>
+  const { createApp } = Vue;
+
+
+  const API = "http://127.0.0.1:8002";
+
+
+  createApp({
+    data() {
+      return {
+        screen:        "login",
+        loginEmail:    "",
+        loginPassword: "",
+        loginError:    "",
+        loading:       false,
+        dashLoading:   false,
+        accessToken:   "",
+        refreshToken:  "",
+        userEmail:     "",
+        doctorAppointments: [],
+        patientAppointments: [],
+        patientBills:  []
+      };
+    },
+
+
+    methods: {
+
+
+      async doLogin() {
+        this.loginError = "";
+        this.loading    = true;
+        try {
+          const resp = await fetch(API + "/login", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ email: this.loginEmail, password: this.loginPassword })
+          });
+
+
+          if (!resp.ok) {
+            const err = await resp.json();
+            this.loginError = err.detail || "Login failed.";
+            return;
+          }
+
+
+          const data = await resp.json();
+          this.accessToken  = data.access_token;
+          this.refreshToken = data.refresh_token;
+          this.userEmail    = this.loginEmail;
+
+
+          if (data.role === "doctor") {
+            this.screen = "doctor";
+            await this.loadDoctorDashboard();
+          } else if (data.role === "patient") {
+            this.screen = "patient";
+            await this.loadPatientDashboard();
+          } else {
+            this.loginError = "This role does not have a dashboard yet.";
+          }
+
+
+        } catch (e) {
+          this.loginError = "Cannot reach the server. Make sure the backend is running on port 8002.";
+        } finally {
+          this.loading = false;
+        }
+      },
+
+
+      async loadDoctorDashboard() {
+        this.dashLoading = true;
+        try {
+          const resp = await fetch(API + "/dashboard/doctor", {
+            headers: { "Authorization": "Bearer " + this.accessToken }
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            this.doctorAppointments = data.today_appointments || [];
+          } else {
+            const err = await resp.json();
+            console.error("Doctor dashboard error:", err);
+          }
+        } catch (e) {
+          console.error("Doctor dashboard fetch failed:", e);
+        } finally {
+          this.dashLoading = false;
+        }
+      },
+
+
+      async loadPatientDashboard() {
+        this.dashLoading = true;
+        try {
+          const resp = await fetch(API + "/dashboard/patient", {
+            headers: { "Authorization": "Bearer " + this.accessToken }
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            this.patientAppointments = data.appointments || [];
+            this.patientBills        = data.bills        || [];
+          } else {
+            const err = await resp.json();
+            console.error("Patient dashboard error:", err);
+          }
+        } catch (e) {
+          console.error("Patient dashboard fetch failed:", e);
+        } finally {
+          this.dashLoading = false;
+        }
+      },
+
+
+      async doLogout() {
+        try {
+          await fetch(API + "/logout", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({ refresh_token: this.refreshToken })
+          });
+        } catch (e) {
+          console.error("Logout error:", e);
+        }
+        this.accessToken        = "";
+        this.refreshToken       = "";
+        this.userEmail          = "";
+        this.loginEmail         = "";
+        this.loginPassword      = "";
+        this.loginError         = "";
+        this.doctorAppointments = [];
+        this.patientAppointments = [];
+        this.patientBills       = [];
+        this.screen             = "login";
+      },
+
+
+      statusBadge(status) {
+        const map = {
+          "Completed": "badge-completed",
+          "Scheduled": "badge-scheduled",
+          "Cancelled": "badge-cancelled"
+        };
+        return map[status] || "badge-scheduled";
+      },
+
+
+      billBadge(status) {
+        const map = {
+          "Paid":           "badge-paid",
+          "Partially Paid": "badge-partially",
+          "Pending":        "badge-pending",
+          "Rejected":       "badge-rejected"
+        };
+        return map[status] || "badge-pending";
+      }
+    }
+
+
+  }).mount("#app");
+</script>
+</body>
+</html>
